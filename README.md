@@ -24,7 +24,8 @@ the Stockfish binaries, `local.properties` and build outputs. A fresh clone rebu
 git clone https://github.com/sangeeta-studios/chess-review.git
 cd chess-review
 
-# Tell Gradle where the SDK is (or export ANDROID_HOME instead):
+# Tell Gradle where the SDK is (or export ANDROID_HOME instead).
+# local.properties.example shows the format and the usual paths per OS.
 echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties   # Linux: $HOME/Android/Sdk
 
 # macOS with Android Studio; on Linux point JAVA_HOME at any JDK 17+.
@@ -60,13 +61,8 @@ adb shell am start -a android.intent.action.SEND -t text/plain \
 
 ## Release (Google Play)
 
-1. Create an upload key and `keystore.properties` in the project root (gitignored):
-   ```
-   storeFile=upload.jks
-   storePassword=…
-   keyAlias=upload
-   keyPassword=…
-   ```
+1. One time only: create an upload key and `keystore.properties` (both gitignored), as
+   described in [Upload key](#upload-key-release-signing) below.
 2. Bump `versionCode`/`versionName` in `app/build.gradle.kts`.
 3. `./gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`.
 
@@ -75,9 +71,44 @@ no permissions, edge-to-edge, adaptive + themed icon, R8 minified. Privacy polic
 `docs/privacy-policy.md` (host it at a public URL for the listing). Data safety form: no data
 collected or shared.
 
-Before the first release, set `chessreview.sourceUrl` in `gradle.properties` to the public
-GitHub repo; release builds fail without it so every shipped version links to its source.
+`chessreview.sourceUrl` in `gradle.properties` points at this public repo; release builds fail
+if it is empty, so every shipped version links to its source.
 Tag each Play release in git (e.g. `v1.0.0`).
+
+## Files not in git
+
+These are gitignored. Here is how to get each one back:
+
+| File | What it is | How to recreate |
+|---|---|---|
+| `app/src/main/jniLibs/` | Stockfish engine binaries (~80 MB each) | `./scripts/build-stockfish.sh` |
+| `local.properties` | Path to your Android SDK | Copy `local.properties.example` and edit it, or `export ANDROID_HOME=…` |
+| `keystore.properties` | Release signing settings | Copy `keystore.properties.example` and edit it (see below) |
+| `*.jks` / `*.keystore` | Upload key for Play releases | Generate with `keytool` (see below); never commit it |
+| `~/.android/debug.keystore` | Debug signing key (outside the repo) | Created automatically by the first debug build; see *Debug signing* above |
+| `.gradle/`, `build/`, `.kotlin/`, `captures/` | Build caches and outputs | Recreated automatically by Gradle |
+| `.idea/`, `*.iml`, `.DS_Store` | IDE / macOS files | Recreated automatically |
+
+### Upload key (release signing)
+
+Play uses **Play App Signing**: Google holds the key that signs what users install, and you
+sign uploads with your own *upload key*.
+
+```sh
+mkdir -p ~/keys
+keytool -genkeypair -v -keystore ~/keys/chess-review-upload.jks \
+  -alias upload -keyalg RSA -keysize 2048 -validity 10000
+cp keystore.properties.example keystore.properties   # then fill in the path and passwords
+./gradlew bundleRelease                              # → app/build/outputs/bundle/release/app-release.aab
+```
+
+`keytool` comes with the JDK (with Android Studio's JBR it is in `$JAVA_HOME/bin`). Back up the
+`.jks` file and its passwords somewhere safe, such as a password manager.
+
+**If the upload key is lost:** you can't recreate it. Generate a new one as above, then request
+an upload key reset from the app-signing settings on Play Console's *App integrity* page. Google
+registers the new key after a waiting period, and installed users are unaffected because the
+app-signing key held by Google doesn't change.
 
 ## License
 
