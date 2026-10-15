@@ -5,13 +5,48 @@ pasted, or opened as a `.pgn` file — using an on-device Stockfish engine. Each
 classified (Best / Excellent / Good / Inaccuracy / Mistake / Blunder / Forced) and shown on
 the board with badges, best-move arrows, an eval bar, eval graph and per-side accuracy.
 
-## Build
+## Build for personal use
+
+Everything needed is in this repo except files that are regenerated locally (`.gitignore`):
+the Stockfish binaries, `local.properties` and build outputs. A fresh clone rebuilds like this.
+
+**Prerequisites**
+
+- JDK 17 or newer (Android Studio's bundled JBR works).
+- Android SDK with platform 36 and build-tools; plus the **NDK** (Android Studio → SDK Manager →
+  SDK Tools → NDK, or `sdkmanager "ndk;28.2.13676358"`).
+- `git`, `make` and an internet connection (the first engine build downloads Stockfish's
+  neural-network files, ~80 MB). macOS or Linux.
+
+**Steps**
 
 ```sh
+git clone https://github.com/sangeeta-studios/chess-review.git
+cd chess-review
+
+# Tell Gradle where the SDK is (or export ANDROID_HOME instead):
+echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties   # Linux: $HOME/Android/Sdk
+
+# macOS with Android Studio; on Linux point JAVA_HOME at any JDK 17+.
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-./scripts/build-stockfish.sh          # once: builds Stockfish (arm64-v8a, x86_64) into app/src/main/jniLibs
-./gradlew testDebugUnitTest           # parser / classifier tests
-./gradlew installDebug
+
+./scripts/build-stockfish.sh     # builds the engine into app/src/main/jniLibs (a few minutes)
+./gradlew assembleDebug          # → app/build/outputs/apk/debug/app-debug.apk
+```
+
+Install it on a phone with USB debugging on (`./gradlew installDebug`, or
+`adb install -r app/build/outputs/apk/debug/app-debug.apk`), or copy the APK to the phone and
+open it. The build stops with an explanation if the engine hasn't been built yet.
+
+**Debug signing:** debug APKs are signed with `~/.android/debug.keystore`, which lives on your
+machine, not in this repo. A different machine (or a lost key) produces a different signature,
+so Android won't install over an existing copy: uninstall it first, which deletes the games
+saved in the app. Back up `~/.android/debug.keystore` if that matters to you.
+
+**Tests**
+
+```sh
+./gradlew testDebugUnitTest           # parser / classifier tests (no engine needed)
 ./gradlew connectedDebugAndroidTest   # engine smoke test on a device/emulator
 ```
 

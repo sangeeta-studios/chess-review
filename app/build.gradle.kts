@@ -85,6 +85,16 @@ tasks.matching { it.name in setOf("preReleaseBuild", "bundleRelease") }.configur
     }
 }
 
+// The Stockfish binaries are gitignored; fail clearly instead of shipping an APK whose engine is missing.
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("NativeLibs") }.configureEach {
+    val engine = layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libstockfish.so").asFile
+    doFirst {
+        check(engine.exists()) {
+            "Stockfish engine not found at $engine. Run ./scripts/build-stockfish.sh first (see README)."
+        }
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
