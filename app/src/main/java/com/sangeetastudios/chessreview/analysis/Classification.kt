@@ -1,6 +1,7 @@
 package com.sangeetastudios.chessreview.analysis
 
 import kotlin.math.exp
+import kotlin.math.ln
 
 enum class MoveClass(val label: String, val symbol: String) {
     BEST("Best", "★"),
@@ -51,6 +52,8 @@ data class MoveReview(
     val classification: MoveClass,
     val winLoss: Double,
     val accuracy: Double,
+    /** Centipawns the mover gave up (evals clamped to ±1000 so mates don't dominate). */
+    val cpLoss: Int,
     /** Engine's preferred move (UCI) in the position before this ply. */
     val bestMove: String?,
     val bestMoveSan: String?,
@@ -58,6 +61,8 @@ data class MoveReview(
 
 object Classifier {
     private const val MATE_THRESHOLD = PositionEval.MATE_CP - 500
+    private const val CP_CLAMP = 1000
+    private const val MAX_ELO = 3100.0
 
     /** Lichess win-percentage model: 0..100 for White given a White-POV centipawn score. */
     fun winPercent(whiteCp: Int): Double {
@@ -76,6 +81,32 @@ object Classifier {
         val harmonic = moves.size / moves.sumOf { 1.0 / it.first.coerceAtLeast(1.0) }
         return (weighted + harmonic) / 2
     }
+
+    /** Centipawn loss of a move, from White-POV evals clamped to ±[CP_CLAMP]. */
+    fun cpLoss(before: PositionEval, after: PositionEval, moverIsWhite: Boolean): Int {
+        val sign = if (moverIsWhite) 1 else -1
+        val b = (sign * before.whiteCp).coerceIn(-CP_CLAMP, CP_CLAMP)
+        val a = (sign * after.whiteCp).coerceIn(-CP_CLAMP, CP_CLAMP)
+        return (b - a).coerceAtLeast(0)
+    }
+
+    /** Rough Elo for an average centipawn loss (same curve as Chesskit's game-rating estimate). */
+    fun eloFromAcpl(acpl: Double): Double = MAX_ELO * exp(-0.01 * acpl)
+
+    private fun acplFromElo(elo: Double): Double = -100 * ln(elo.coerceIn(1.0, MAX_ELO) / MAX_ELO)
+
+    /**
+     * Estimated performance rating for one side. With the player's [rating] known, the estimate
+     * moves away from it by how much better or worse they played than that rating usually does;
+     * otherwise it comes straight from the ACPL curve.
+     */
+    fun estimatedElo(acpl: Double, rating: Int?): Int {
+        val elo = if (rating == null || rating <= 0) eloFromAcpl(acpl)
+        else rating * exp(-0.005 * (acpl - acplFromElo(rating.toDouble())))
+        return elo.coerceIn(100.0, MAX_ELO).roundToNearest(10)
+    }
+
+    private fun Double.roundToNearest(step: Int): Int = (Math.round(this / step) * step).toInt()
 
     fun classify(
         before: PositionEval,

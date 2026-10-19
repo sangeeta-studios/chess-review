@@ -283,7 +283,7 @@ private fun MoveChip(san: String, review: MoveReview?, selected: Boolean, onClic
     }
 }
 
-/** Players, accuracy and per-class counts. */
+/** Players, accuracy, estimated game rating and per-class counts. */
 @Composable
 fun SummaryCard(state: ReviewUiState, modifier: Modifier = Modifier) {
     val game = state.game ?: return
@@ -291,14 +291,14 @@ fun SummaryCard(state: ReviewUiState, modifier: Modifier = Modifier) {
     Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                PlayerColumn(game.white, game.whiteElo, review?.whiteAccuracy, true, Modifier.weight(1f))
+                PlayerColumn(game.white, game.whiteElo, review?.whiteAccuracy, review?.whiteGameElo, true, Modifier.weight(1f))
                 Text(
                     game.result.replace("1/2-1/2", "½-½"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 8.dp),
                 )
-                PlayerColumn(game.black, game.blackElo, review?.blackAccuracy, false, Modifier.weight(1f))
+                PlayerColumn(game.black, game.blackElo, review?.blackAccuracy, review?.blackGameElo, false, Modifier.weight(1f))
             }
             game.headers["Termination"]?.let {
                 Text(
@@ -330,7 +330,7 @@ fun SummaryCard(state: ReviewUiState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun PlayerColumn(name: String, elo: String?, accuracy: Double?, white: Boolean, modifier: Modifier) {
+private fun PlayerColumn(name: String, elo: String?, accuracy: Double?, gameElo: Int?, white: Boolean, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
@@ -346,5 +346,8 @@ private fun PlayerColumn(name: String, elo: String?, accuracy: Double?, white: B
             fontWeight = FontWeight.Bold,
         )
         Text("Accuracy", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(6.dp))
+        Text(gameElo?.toString() ?: "—", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Game rating", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

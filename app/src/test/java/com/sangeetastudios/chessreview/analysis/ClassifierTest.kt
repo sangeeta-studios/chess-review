@@ -58,4 +58,23 @@ class ClassifierTest {
         assertEquals(100.0, clean, 0.01)
         assertTrue("was $withBlunder", withBlunder < 80)
     }
+
+    @Test
+    fun cpLossIsClampedAndFromMoverView() {
+        assertEquals(400, Classifier.cpLoss(eval(0), eval(-400), true))
+        assertEquals(0, Classifier.cpLoss(eval(0), eval(-400), false))
+        // Losing a mate counts at most the clamp, not ~10000.
+        assertEquals(100, Classifier.cpLoss(PositionEval(null, 2, null), eval(900), true))
+    }
+
+    @Test
+    fun estimatedEloTracksPlayQuality() {
+        assertTrue(Classifier.estimatedElo(10.0, null) > Classifier.estimatedElo(80.0, null))
+        assertEquals(3100, Classifier.estimatedElo(0.0, null))
+        // Playing exactly as a 1500 usually does keeps the estimate at 1500.
+        val typical1500 = -100 * kotlin.math.ln(1500.0 / 3100.0)
+        assertEquals(1500, Classifier.estimatedElo(typical1500, 1500))
+        assertTrue(Classifier.estimatedElo(typical1500 - 30, 1500) > 1500)
+        assertTrue(Classifier.estimatedElo(typical1500 + 30, 1500) < 1500)
+    }
 }
