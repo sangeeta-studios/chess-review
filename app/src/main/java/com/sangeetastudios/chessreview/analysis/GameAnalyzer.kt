@@ -55,10 +55,16 @@ data class GameReview(
     val moves: List<MoveReview>,
     val whiteAccuracy: Double?,
     val blackAccuracy: Double?,
+    /** Estimated performance rating per side; null until enough moves are reviewed. */
+    val whiteGameElo: Int?,
+    val blackGameElo: Int?,
     val whiteCounts: Map<MoveClass, Int>,
     val blackCounts: Map<MoveClass, Int>,
 ) {
     companion object {
+        /** Fewer moves than this say too little about a player to put a rating on it. */
+        private const val MIN_MOVES_FOR_ELO = 5
+
         fun build(game: Game, evals: List<PositionEval>): GameReview {
             val moves = game.plies.mapNotNull { ply ->
                 val before = evals.getOrNull(ply.index) ?: return@mapNotNull null
@@ -66,16 +72,21 @@ data class GameReview(
                 val onlyMove = ChessUtil.boardFromFen(ply.fenBefore).legalMoves().size == 1
                 val (cls, loss) = Classifier.classify(before, after, ply.uci, ply.isWhite, onlyMove)
                 val bestSan = before.bestMove?.let { ChessUtil.sanForUci(ply.fenBefore, it) }
-                MoveReview(ply.index, cls, loss, Classifier.accuracy(loss), before.bestMove, bestSan)
+                val cpLoss = Classifier.cpLoss(before, after, ply.isWhite)
+                MoveReview(ply.index, cls, loss, Classifier.accuracy(loss), cpLoss, before.bestMove, bestSan)
             }
             fun side(white: Boolean) = moves.filter { (it.plyIndex % 2 == 0) == white }
             val weights = volatilityWeights(evals.map { Classifier.winPercent(it.whiteCp) })
             fun acc(list: List<MoveReview>) = Classifier.gameAccuracy(list.map { it.accuracy to (weights.getOrNull(it.plyIndex) ?: 1.0) })
+            fun gameElo(list: List<MoveReview>, rating: String?) = list.takeIf { it.size >= MIN_MOVES_FOR_ELO }
+                ?.let { Classifier.estimatedElo(it.map { m -> m.cpLoss }.average(), rating?.toIntOrNull()) }
             fun counts(list: List<MoveReview>) = list.groupingBy { it.classification }.eachCount()
             return GameReview(
                 moves = moves,
                 whiteAccuracy = acc(side(true)),
                 blackAccuracy = acc(side(false)),
+                whiteGameElo = gameElo(side(true), game.whiteElo),
+                blackGameElo = gameElo(side(false), game.blackElo),
                 whiteCounts = counts(side(true)),
                 blackCounts = counts(side(false)),
             )
