@@ -193,8 +193,9 @@ private fun BoardColumn(state: ReviewUiState, vm: ReviewViewModel, modifier: Mod
         }
     }
     val topIsWhite = state.flipped
+    val gameElo = { white: Boolean -> if (white) state.review?.whiteGameElo else state.review?.blackGameElo }
     Column(modifier) {
-        PlayerStrip(if (topIsWhite) game.white else game.black, if (topIsWhite) game.whiteElo else game.blackElo, topIsWhite)
+        PlayerStrip(if (topIsWhite) game.white else game.black, if (topIsWhite) game.whiteElo else game.blackElo, gameElo(topIsWhite), topIsWhite)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val boardSize = maxWidth - EVAL_BAR_TOTAL
             Row {
@@ -213,12 +214,12 @@ private fun BoardColumn(state: ReviewUiState, vm: ReviewViewModel, modifier: Mod
                 )
             }
         }
-        PlayerStrip(if (topIsWhite) game.black else game.white, if (topIsWhite) game.blackElo else game.whiteElo, !topIsWhite)
+        PlayerStrip(if (topIsWhite) game.black else game.white, if (topIsWhite) game.blackElo else game.whiteElo, gameElo(!topIsWhite), !topIsWhite)
     }
 }
 
 @Composable
-private fun PlayerStrip(name: String, elo: String?, white: Boolean) {
+private fun PlayerStrip(name: String, elo: String?, gameElo: Int?, white: Boolean) {
     Row(Modifier.fillMaxWidth().padding(start = EVAL_BAR_TOTAL, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
@@ -227,10 +228,32 @@ private fun PlayerStrip(name: String, elo: String?, white: Boolean) {
                 .background(if (white) Color(0xFFF2F2F2) else Color(0xFF262421)),
         )
         Spacer(Modifier.width(8.dp))
-        Text(name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            name,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
         elo?.let {
             Spacer(Modifier.width(6.dp))
             Text("($it)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        // Estimated rating for this game, so it is visible without opening the summary.
+        gameElo?.let {
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Game rating $it",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
         }
     }
 }
