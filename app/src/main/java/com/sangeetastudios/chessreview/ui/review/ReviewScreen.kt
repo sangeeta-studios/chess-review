@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +51,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -243,17 +246,30 @@ private fun PlayerStrip(name: String, elo: String?, gameElo: Int?, white: Boolea
         // Estimated rating for this game, so it is visible without opening the summary.
         gameElo?.let {
             Spacer(Modifier.width(8.dp))
-            Text(
-                "Game rating $it",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier
+            // Icon + number keeps the name readable; the Summary tab spells out "Game rating".
+            Row(
+                Modifier
                     .clip(RoundedCornerShape(4.dp))
                     .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            )
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .semantics(mergeDescendants = true) { contentDescription = "Game rating $it" },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    "$it",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
         }
     }
 }
